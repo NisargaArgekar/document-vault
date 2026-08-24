@@ -1,0 +1,37 @@
+// Prisma Schema — defines our database tables
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// A collection is a folder-like group that holds documents.
+model Collection {
+  id        String     @id @default(uuid())
+  name      String
+  slug      String     @unique
+  createdAt DateTime   @default(now())
+
+  // One collection has many documents
+  documents Document[]
+}
+
+/// A document belongs to exactly one collection.
+model Document {
+  id           String     @id @default(uuid())
+  title        String
+  content      String
+  tags         String[]
+  isArchived   Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+
+  // Foreign key: links this document to a collection
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id])
+}
+
