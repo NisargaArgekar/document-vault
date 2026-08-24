@@ -1,4 +1,5 @@
 import { GraphQLError } from "graphql";
+import { Prisma } from "@prisma/client";
 import { prisma } from "./lib/prisma.js";
 
 // Helper interfaces to enforce strict typing (avoiding 'any')
@@ -79,7 +80,7 @@ export const resolvers = {
       const { collectionId, search, isArchived, take = 10, cursor } = args;
 
       // Construct dynamic filters
-      const where: any = {};
+      const where: Prisma.DocumentWhereInput = {};
 
       if (collectionId !== undefined) {
         where.collectionId = collectionId;
@@ -98,7 +99,7 @@ export const resolvers = {
       }
 
       // Configure cursor-based pagination
-      let queryOptions: any = {
+      const queryOptions: Prisma.DocumentFindManyArgs = {
         where,
         // We take one extra item to check if there is a next page
         take: take + 1,
@@ -216,6 +217,15 @@ export const resolvers = {
 
     // 7. Delete a document permanently
     deleteDocument: async (_parent: unknown, args: IdArgs) => {
+      const existing = await prisma.document.findUnique({
+        where: { id: args.id },
+      });
+      if (!existing) {
+        throw new GraphQLError("Document not found", {
+          extensions: { code: "BAD_USER_INPUT" },
+        });
+      }
+
       await prisma.document.delete({
         where: { id: args.id },
       });
@@ -224,6 +234,26 @@ export const resolvers = {
 
     // 8. Move a document to a different collection
     moveDocument: async (_parent: unknown, args: MoveDocumentArgs) => {
+      // Verify the document itself exists
+      const document = await prisma.document.findUnique({
+        where: { id: args.id },
+      });
+      if (!document) {
+        throw new GraphQLError("Document not found", {
+          extensions: { code: "BAD_USER_INPUT" },
+        });
+      }
+
+      // Verify the destination collection exists
+      const targetCollection = await prisma.collection.findUnique({
+        where: { id: args.collectionId },
+      });
+      if (!targetCollection) {
+        throw new GraphQLError("Target collection not found", {
+          extensions: { code: "BAD_USER_INPUT" },
+        });
+      }
+
       return prisma.document.update({
         where: { id: args.id },
         data: {
