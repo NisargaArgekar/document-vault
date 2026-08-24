@@ -6,21 +6,7 @@ import { join } from "node:path";
 const schemaPath = join(import.meta.dirname, "schema.graphql");
 const typeDefs = readFileSync(schemaPath, "utf-8");
 
-// 2. Define placeholder/mock resolvers for initial boot
-// We will replace these with real database resolvers in Phase 7.
-const resolvers = {
-  Query: {
-    collections: () => [],
-    collection: () => null,
-    documents: () => ({
-      edges: [],
-      pageInfo: {
-        hasNextPage: false,
-        endCursor: null,
-      },
-    }),
-  },
-};
+import { resolvers } from "./resolvers.js";
 
 // 3. Create the GraphQL Schema using our typeDefs and resolvers
 const schema = createSchema({
