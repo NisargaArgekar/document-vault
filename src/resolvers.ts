@@ -1,3 +1,4 @@
+import { GraphQLError } from "graphql";
 import { prisma } from "./lib/prisma.js";
 
 // Helper interfaces to enforce strict typing (avoiding 'any')
@@ -36,6 +37,25 @@ interface DocumentsArgs {
   isArchived?: boolean;
   take?: number;
   cursor?: string;
+}
+
+// Validation helpers
+function validateNonEmptyString(value: string, fieldName: string) {
+  if (!value || value.trim() === "") {
+    throw new GraphQLError(`${fieldName} cannot be empty or contain only whitespace`, {
+      extensions: { code: "BAD_USER_INPUT" },
+    });
+  }
+}
+
+function validateSlug(slug: string) {
+  // Slugs must contain only lowercase letters, numbers, and hyphens (e.g. "my-collection-123")
+  const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+  if (!slugRegex.test(slug)) {
+    throw new GraphQLError("Slug is malformed. It must contain only lowercase letters, numbers, and single hyphens, and cannot start or end with a hyphen", {
+      extensions: { code: "BAD_USER_INPUT" },
+    });
+  }
 }
 
 export const resolvers = {
@@ -120,6 +140,20 @@ export const resolvers = {
   Mutation: {
     // 4. Create a new collection
     createCollection: async (_parent: unknown, args: CreateCollectionArgs) => {
+      validateNonEmptyString(args.name, "Collection name");
+      validateNonEmptyString(args.slug, "Collection slug");
+      validateSlug(args.slug);
+
+      // Check if the slug is already in use
+      const existing = await prisma.collection.findUnique({
+        where: { slug: args.slug },
+      });
+      if (existing) {
+        throw new GraphQLError("A collection with this slug already exists", {
+          extensions: { code: "BAD_USER_INPUT" },
+        });
+      }
+
       return prisma.collection.create({
         data: {
           name: args.name,
@@ -130,6 +164,19 @@ export const resolvers = {
 
     // 5. Create a new document in a collection
     createDocument: async (_parent: unknown, args: CreateDocumentArgs) => {
+      validateNonEmptyString(args.title, "Document title");
+      validateNonEmptyString(args.content, "Document content");
+
+      // Verify collection exists
+      const collection = await prisma.collection.findUnique({
+        where: { id: args.collectionId },
+      });
+      if (!collection) {
+        throw new GraphQLError("Collection not found", {
+          extensions: { code: "BAD_USER_INPUT" },
+        });
+      }
+
       return prisma.document.create({
         data: {
           title: args.title,
@@ -143,6 +190,24 @@ export const resolvers = {
     // 6. Update an existing document
     updateDocument: async (_parent: unknown, args: UpdateDocumentArgs) => {
       const { id, ...data } = args;
+
+      // Verify document exists
+      const existing = await prisma.document.findUnique({
+        where: { id },
+      });
+      if (!existing) {
+        throw new GraphQLError("Document not found", {
+          extensions: { code: "BAD_USER_INPUT" },
+        });
+      }
+
+      if (data.title !== undefined) {
+        validateNonEmptyString(data.title, "Document title");
+      }
+      if (data.content !== undefined) {
+        validateNonEmptyString(data.content, "Document content");
+      }
+
       return prisma.document.update({
         where: { id },
         data,
