@@ -1,8 +1,43 @@
-/**
- * Document Vault — GraphQL API
- *
- * This is the entry point of the application.
- * It will start the GraphQL Yoga server once we set it up in Phase 6.
- */
+import { createYoga, createSchema } from "graphql-yoga";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
-console.log("Document Vault API — starting soon!");
+// 1. Read the schema file
+const schemaPath = join(import.meta.dirname, "schema.graphql");
+const typeDefs = readFileSync(schemaPath, "utf-8");
+
+// 2. Define placeholder/mock resolvers for initial boot
+// We will replace these with real database resolvers in Phase 7.
+const resolvers = {
+  Query: {
+    collections: () => [],
+    collection: () => null,
+    documents: () => ({
+      edges: [],
+      pageInfo: {
+        hasNextPage: false,
+        endCursor: null,
+      },
+    }),
+  },
+};
+
+// 3. Create the GraphQL Schema using our typeDefs and resolvers
+const schema = createSchema({
+  typeDefs,
+  resolvers,
+});
+
+// 4. Create the GraphQL Yoga server instance
+const yoga = createYoga({
+  schema,
+  landingPage: true, // Enables the interactive GraphQL Playground in the browser
+});
+
+// 5. Start the Bun HTTP Server on port 4000
+const server = Bun.serve({
+  port: 4000,
+  fetch: (request) => yoga.handle(request),
+});
+
+console.log(`🚀 Document Vault server is running on ${server.url}graphql`);
