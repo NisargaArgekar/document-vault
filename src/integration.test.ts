@@ -4,7 +4,7 @@ import { resolvers } from "./resolvers.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests — run against the real Dockerized PostgreSQL database.
-//
+
 // No mocking here on purpose: these tests exercise the actual resolvers and
 // Prisma queries end-to-end. If PostgreSQL is not running they skip safely.
 // ---------------------------------------------------------------------------
